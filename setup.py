@@ -22,7 +22,7 @@ setuptools.setup(
     ],
     description="A Python package for genomics",
     extras_require={
-        "build": ["twine>=3.1.1"],
+        "build": ["sphinx>=3.0.1", "sphinx-gallery>=0.6.1", "twine>=3.1.1"],
         "dev": ["black>=19.10b0", "check-manifest>=0.41", "pre-commit>=2.2.0"],
         "test": ["coverage>=5.0.4", "pytest>=5.4.1"],
     },
