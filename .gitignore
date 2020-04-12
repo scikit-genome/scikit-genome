@@ -4,4 +4,5 @@ __pycache__
 build
 dist
 doc/build
+doc/source/auto_examples
 venv
