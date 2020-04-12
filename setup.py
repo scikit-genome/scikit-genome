@@ -38,5 +38,5 @@ setuptools.setup(
     },
     python_requires=">=3.7, <4",
     url="https://github.com/scikit-genome/scikit-genome",
-    version="0.0.0",
+    version="0.0.1",
 )
