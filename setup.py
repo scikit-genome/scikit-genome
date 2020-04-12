@@ -22,8 +22,15 @@ setuptools.setup(
     ],
     description='A Python package for genomics',
     extras_require={
-        'dev': ['check-manifest'],
-        'test': ['coverage'],
+        'build': [
+            'twine>=3.1.1'
+        ],
+        'dev': [
+            'check-manifest>=0.41'
+        ],
+        'test': [
+            'coverage>=5.0.4'
+        ],
     },
     install_requires=[],
     long_description=long_description,
