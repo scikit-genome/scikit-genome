@@ -2,100 +2,128 @@
 %import common.LETTER
 %import common.NEWLINE
 
-unit           : sections
-sections       : section+
-section        : headers alignments
-header_section : header_line+
-header_line    : "@" record
-record         : "HD" hd_record
-               | "SQ" sq_record
-               | "RG" rg_record
-               | "PG" pg_record
-               | "CO" co_record
-hd_record      : "VN" hd_vn_record
-               | "SO" hd_so_record
-               | "GO" hd_go_record
-               | "SS" hd_ss_record
-hd_vn_record   : HD_VN_RECORD
-HD_VN_RECORD   : DIGIT+ "." DIGIT+
-hd_so_record   :
-               | "coordinate"
-               | "queryname"
-               | "unknown"
-               | "unsorted"
-hd_go_record   :
-               | "none"
-               | "query"
-               | "reference"
-hd_ss_record   : HD_SS_RECORD
-HD_SS_RECORD   : ("coordinate" | "queryname" | "unsorted")(":" [A-Za-z0-9_-]+)+
-sq_record      : "SN" sq_sn_record
-               | "LN" sq_ln_record
-               | "AH" sq_ah_record
-               | "AN" sq_an_record
-               | "AS" sq_as_record
-               | "DS" sq_ds_record
-               | "M5" sq_m5_record
-               | "SP" sq_sp_record
-               | "TP" sq_tp_record
-               | "UR" sq_ur_record
-sq_sn_record   :
-sq_ln_record   :
-sq_ah_record   :
-sq_an_record   :
-sq_as_record   :
-sq_ds_record   :
-sq_m5_record   :
-sq_sp_record   :
-sq_tp_record   :
-               | "circular"
-               | "linear"
-sq_ur_record   :
-rg_record      : "ID" rg_id_record
-               | "BC" rg_bc_record
-               | "CN" rg_cn_record
-               | "DS" rg_ds_record
-               | "DT" rg_dt_record
-               | "FO" rg_fo_record
-               | "KS" rg_ks_record
-               | "LB" rg_lb_record
-               | "PG" rg_pg_record
-               | "PI" rg_pi_record
-               | "PL" rg_pl_record
-               | "PM" rg_pm_record
-               | "PU" rg_pu_record
-               | "SM" rg_sm_record
-rg_id_record   :
-rg_bc_record   :
-rg_cn_record   :
-rg_ds_record   :
-rg_dt_record   :
-rg_fo_record   :
-rg_ks_record   :
-rg_lb_record   :
-rg_pg_record   :
-rg_pi_record   :
-rg_pl_record   : "CAPILLARY"
-               | "HELICOS"
-               | "ILLUMINA"
-               | "IONTORRENT"
-               | "LS454"
-               | "ONT"
-               | "PACBIO"
-               | "SOLID"
-rg_pm_record   :
-rg_pu_record   :
-rg_sm_record   :
-pg_record      : "ID" pg_id_record
-               | "PN" pg_pn_record
-               | "CL" pg_cl_record
-               | "PP" pg_pp_record
-               | "DS" pg_ds_record
-               | "VN" pg_vn_record
-pg_id_record   :
-pg_pn_record   :
-pg_cl_record   :
-pg_pp_record   :
-pg_ds_record   :
-pg_vn_record   :
-co_record      :
+EOL                     : NEWLINE
+QUERY_OR_READ_NAME      : /!-~]+/
+REFERENCE_SEQUENCE_NAME : /[0-9A-Za-z!#$%&+.\/:;?@^_|~\-][0-9A-Za-z!#$%&*+.\/:;=?@^_|~\-]*/
+TAB                     : /\t/
+
+
+unit            : sections
+sections        : section+
+section         : headers alignments
+header_section  : header_line+
+header_line     : "@" record
+record          : "HD" hd_records
+                | "SQ" sq_records
+                | "RG" rg_records
+                | "PG" pg_records
+                | "CO" co_records
+hd_records      : hd_record+
+hd_record       : hd_record_tags EOL
+hd_record_tags  : hd_record_tag
+                | hd_record_tags TAB hd_record_tag
+hd_record_tag   : "VN" ":" hd_vn_tag
+                | "SO" ":" hd_so_tag
+                | "GO" ":" hd_go_tag
+                | "SS" ":" hd_ss_tag
+hd_vn_tag       : HD_VN_RECORD
+HD_VN_RECORD    : DIGIT+ "." DIGIT+
+hd_so_tag       :
+                | "coordinate"
+                | "queryname"
+                | "unknown"
+                | "unsorted"
+hd_go_tag       :
+                | "none"
+                | "query"
+                | "reference"
+hd_ss_tag       : hd_ss_tag
+HD_SS_RECORD    : ("coordinate" | "queryname" | "unsorted")(":" (DIGIT | LETTER)+)+
+sq_records      : sq_record+
+sq_record       : sq_record_tags EOL
+sq_record_tags  : sq_record_tag
+                | sq_record_tags TAB sq_record_tag
+sq_record_tag   : "SN" ":" sq_sn_tag
+                | "LN" ":" sq_ln_tag
+                | "AH" ":" sq_ah_tag
+                | "AN" ":" sq_an_tag
+                | "AS" ":" sq_as_tag
+                | "DS" ":" sq_ds_tag
+                | "M5" ":" sq_m5_tag
+                | "SP" ":" sq_sp_tag
+                | "TP" ":" sq_tp_tag
+                | "UR" ":" sq_ur_tag
+sq_sn_tag       : SQ_SN_TAG
+SQ_SN_TAG       : REFERENCE_SEQUENCE_NAME
+sq_ln_tag       : SQ_SN_TAG
+SQ_LN_TAG       : DIGIT+
+sq_ah_tag       : SQ_AH_TAG
+sq_an_tag       :
+sq_as_tag       :
+sq_ds_tag       : SQ_DS_TAG
+SQ_DS_TAG       : /[^\n]/*
+sq_m5_tag       :
+SQ_M5_TAG       : /[0-9a-fA-F]{32}/
+sq_sp_tag       :
+sq_tp_tag       :
+                | "circular"
+                | "linear"
+sq_ur_tag       :
+SQ_UR_TAG       : /^[^:\/?#]+:?\/\/[^\/?#]*?[^?#]*\?[^#]*?#.*?/
+rg_records      : rg_record+
+rg_record       : rg_record_tags EOL
+rg_record_tags  : rg_record_tag
+                | rg_record_tags TAB rg_record_tag
+rg_record_tag   : "ID" ":" rg_id_tag
+                | "BC" ":" rg_bc_tag
+                | "CN" ":" rg_cn_tag
+                | "DS" ":" rg_ds_tag
+                | "DT" ":" rg_dt_tag
+                | "FO" ":" rg_fo_tag
+                | "KS" ":" rg_ks_tag
+                | "LB" ":" rg_lb_tag
+                | "PG" ":" rg_pg_tag
+                | "PI" ":" rg_pi_tag
+                | "PL" ":" rg_pl_tag
+                | "PM" ":" rg_pm_tag
+                | "PU" ":" rg_pu_tag
+                | "SM" ":" rg_sm_tag
+rg_id_tag       :
+rg_bc_tag       :
+rg_cn_tag       :
+rg_ds_tag       :
+rg_dt_tag       :
+rg_fo_tag       :
+rg_ks_tag       :
+rg_lb_tag       :
+rg_pg_tag       :
+rg_pi_tag       :
+rg_pl_tag       : "CAPILLARY"
+                | "HELICOS"
+                | "ILLUMINA"
+                | "IONTORRENT"
+                | "LS454"
+                | "ONT"
+                | "PACBIO"
+                | "SOLID"
+rg_pm_tag       :
+rg_pu_tag       :
+rg_sm_tag       :
+pg_records      : pg_record+
+pg_record       : pg_record_tags EOL
+pg_record_tags  : pg_record_tag
+                | pg_record_tags TAB pg_record_tag
+pg_record_tag   : "ID" ":" pg_id_tag
+                | "PN" ":" pg_pn_tag
+                | "CL" ":" pg_cl_tag
+                | "PP" ":" pg_pp_tag
+                | "DS" ":" pg_ds_tag
+                | "VN" ":" pg_vn_tag
+pg_id_tag       :
+pg_pn_tag       :
+pg_cl_tag       :
+pg_pp_tag       :
+pg_ds_tag       : PG_DS_TAG
+PG_DS_TAG       : /[^\n]/*
+pg_vn_tag       :
+co_record       :
