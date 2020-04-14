@@ -8,25 +8,25 @@ resources_directory = os.path.join(package_directory, "resources")
 
 
 @pytest.fixture
-def example_fasta_pathname():
+def fasta():
     return os.path.join(resources_directory, "example.fasta")
 
 
 @pytest.fixture
-def example_fastq_pathname():
+def fastq():
     return os.path.join(resources_directory, "example.fastq")
 
 
 @pytest.fixture
-def example_gff_pathname():
+def gff():
     return os.path.join(resources_directory, "example.gff")
 
 
 @pytest.fixture
-def example_sam_pathname():
+def sam():
     return os.path.join(resources_directory, "example.sam")
 
 
 @pytest.fixture
-def example_vcf_pathname():
+def vcf():
     return os.path.join(resources_directory, "example.vcf")

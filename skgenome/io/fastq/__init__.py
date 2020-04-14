@@ -1,1 +1,2 @@
-from ._read_fastq import read_fastq
+from ._parse import parse
+from ._read import read

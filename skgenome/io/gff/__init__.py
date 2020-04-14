@@ -1,1 +1,2 @@
-from ._read_gff3 import read_gff3
+from ._parse import parse
+from ._read import read

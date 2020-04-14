@@ -1,1 +1,2 @@
-from ._read_sam import read_sam
+from ._parse import parse
+from ._read import read

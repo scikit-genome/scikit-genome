@@ -1,1 +1,2 @@
-from ._read_fasta import read_fasta
+from ._parse import parse
+from ._read import read

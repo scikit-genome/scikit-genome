@@ -1,1 +1,2 @@
-from ._read_vcf import read_vcf
+from ._parse import parse
+from ._read import read
