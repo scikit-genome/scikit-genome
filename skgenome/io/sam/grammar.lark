@@ -1,0 +1,101 @@
+%import common.DIGIT
+%import common.LETTER
+%import common.NEWLINE
+
+unit           : sections
+sections       : section+
+section        : headers alignments
+header_section : header_line+
+header_line    : "@" record
+record         : "HD" hd_record
+               | "SQ" sq_record
+               | "RG" rg_record
+               | "PG" pg_record
+               | "CO" co_record
+hd_record      : "VN" hd_vn_record
+               | "SO" hd_so_record
+               | "GO" hd_go_record
+               | "SS" hd_ss_record
+hd_vn_record   : HD_VN_RECORD
+HD_VN_RECORD   : DIGIT+ "." DIGIT+
+hd_so_record   :
+               | "coordinate"
+               | "queryname"
+               | "unknown"
+               | "unsorted"
+hd_go_record   :
+               | "none"
+               | "query"
+               | "reference"
+hd_ss_record   : HD_SS_RECORD
+HD_SS_RECORD   : ("coordinate" | "queryname" | "unsorted")(":" [A-Za-z0-9_-]+)+
+sq_record      : "SN" sq_sn_record
+               | "LN" sq_ln_record
+               | "AH" sq_ah_record
+               | "AN" sq_an_record
+               | "AS" sq_as_record
+               | "DS" sq_ds_record
+               | "M5" sq_m5_record
+               | "SP" sq_sp_record
+               | "TP" sq_tp_record
+               | "UR" sq_ur_record
+sq_sn_record   :
+sq_ln_record   :
+sq_ah_record   :
+sq_an_record   :
+sq_as_record   :
+sq_ds_record   :
+sq_m5_record   :
+sq_sp_record   :
+sq_tp_record   :
+               | "circular"
+               | "linear"
+sq_ur_record   :
+rg_record      : "ID" rg_id_record
+               | "BC" rg_bc_record
+               | "CN" rg_cn_record
+               | "DS" rg_ds_record
+               | "DT" rg_dt_record
+               | "FO" rg_fo_record
+               | "KS" rg_ks_record
+               | "LB" rg_lb_record
+               | "PG" rg_pg_record
+               | "PI" rg_pi_record
+               | "PL" rg_pl_record
+               | "PM" rg_pm_record
+               | "PU" rg_pu_record
+               | "SM" rg_sm_record
+rg_id_record   :
+rg_bc_record   :
+rg_cn_record   :
+rg_ds_record   :
+rg_dt_record   :
+rg_fo_record   :
+rg_ks_record   :
+rg_lb_record   :
+rg_pg_record   :
+rg_pi_record   :
+rg_pl_record   : "CAPILLARY"
+               | "HELICOS"
+               | "ILLUMINA"
+               | "IONTORRENT"
+               | "LS454"
+               | "ONT"
+               | "PACBIO"
+               | "SOLID"
+rg_pm_record   :
+rg_pu_record   :
+rg_sm_record   :
+pg_record      : "ID" pg_id_record
+               | "PN" pg_pn_record
+               | "CL" pg_cl_record
+               | "PP" pg_pp_record
+               | "DS" pg_ds_record
+               | "VN" pg_vn_record
+pg_id_record   :
+pg_pn_record   :
+pg_cl_record   :
+pg_pp_record   :
+pg_ds_record   :
+pg_vn_record   :
+co_record      :
