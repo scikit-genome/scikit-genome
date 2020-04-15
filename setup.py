@@ -32,7 +32,12 @@ setuptools.setup(
         ],
         "test": ["coverage>=5.0.4", "pytest>=5.4.1"],
     },
-    install_requires=["matplotlib>=3.2.1", "numpy>=1.18.2", "pandas>=1.0.3"],
+    install_requires=[
+        "lark-parser>=0.8.5",
+        "matplotlib>=3.2.1",
+        "numpy>=1.18.2",
+        "pandas>=1.0.3",
+    ],
     long_description=long_description,
     long_description_content_type="text/markdown",
     name="scikit-genome",
