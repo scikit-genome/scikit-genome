@@ -62,7 +62,12 @@ number_field                : "Number" "=" field_kind
 source_field                : "Source" "=" field_kind
 species_field               : "species" "=" field_kind
 taxonomy_field              : "taxonomy" "=" field_kind
-type_field                  : "Type" "=" field_kind
+type_field                  : "Type" "=" type_kind
+type_kind                   : "Character"
+                            | "Flag"
+                            | "Float"
+                            | "Integer"
+                            | "String"
 url_field                   : "url" "=" field_kind
 version_field               : "Version" "=" field_kind
 field_kind                  : FLOAT
