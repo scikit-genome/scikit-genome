@@ -5,6 +5,8 @@ use memchr::Memchr;
 use crate::fasta::buffer_policy::StandardPolicy;
 use crate::fasta::buffer_position::BufferPosition;
 use crate::fasta::set::Set;
+use crate::try_opt;
+use crate::fasta::owned_record::OwnedRecordIntoIterator;
 
 const BUFFER_SIZE: usize = 64 * 1024;
 
@@ -408,8 +410,8 @@ where
 
     /// Returns an iterator over all FASTA records like `Reader::records()`,
     /// but with the difference that it owns the underlying reader.
-    pub fn into_records(self) -> RecordsIntoIter<R, P> {
-        RecordsIntoIter { rdr: self }
+    pub fn into_records(self) -> OwnedRecordIntoIterator<R, P> {
+        OwnedRecordIntoIterator { parser: self }
     }
 }
 

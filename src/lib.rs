@@ -7,6 +7,7 @@ extern crate serde;
 
 pub mod fasta;
 
+#[macro_export]
 macro_rules! try_opt {
     ($expr: expr) => {
         match $expr {
@@ -16,6 +17,7 @@ macro_rules! try_opt {
     };
 }
 
+#[macro_export]
 macro_rules! unwrap_or {
     ($expr:expr, $or:block) => {
         match $expr {

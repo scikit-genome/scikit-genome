@@ -8,7 +8,7 @@ pub trait Record {
         self.description().split(|b| *b == b' ').next().unwrap()
     }
     fn id(&self) -> Result<&str, std::str::Utf8Error> {
-        str::from_utf8(self.id_bytes())
+        std::str::from_utf8(self.id_bytes())
     }
     fn desc_bytes(&self) -> Option<&[u8]> {
         self.description().splitn(2, |b| *b == b' ').nth(1)
@@ -16,7 +16,7 @@ pub trait Record {
 
     /// Return the description of the record as string slice, if present. Otherwise, `None` is returned.
     fn desc(&self) -> Option<Result<&str, std::str::Utf8Error>> {
-        self.desc_bytes().map(str::from_utf8)
+        self.desc_bytes().map(std::str::from_utf8)
     }
 }
 
