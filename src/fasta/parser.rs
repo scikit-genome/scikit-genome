@@ -1,6 +1,7 @@
-use crate::fasta;
-use std::io::Seek;
+use crate::{fasta, fill_buf};
+use std::io::{Seek, BufRead};
 use std::io;
+use memchr::Memchr;
 
 pub struct Parser<Reader: std::io::Read, Policy = fasta::buffer_policy::StandardPolicy> {
     buffer_policy: Policy,
@@ -198,21 +199,23 @@ where
     // moves to the first record positon, ignoring newline characters
     fn init(&mut self) -> Result<bool, fasta::error::Error> {
         if let Some((line_num, pos, byte)) = self.first_byte()? {
-            if byte == b'>' {
+            return if byte == b'>' {
                 self.buffer_position.position = pos;
                 self.position.byte = pos as u64;
                 self.position.line = line_num as u64;
                 self.search_position = pos + 1;
-                return Ok(true);
+                Ok(true)
             } else {
                 self.finished = true;
-                return Err(fasta::error::Error::InvalidStart {
+                Err(fasta::error::Error::InvalidStart {
                     line: line_num,
                     found: byte,
-                });
+                })
             }
         }
+
         self.finished = true;
+
         Ok(false)
     }
 

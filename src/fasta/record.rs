@@ -17,20 +17,6 @@ pub trait Record {
     fn desc(&self) -> Option<Result<&str, std::str::Utf8Error>> {
         self.desc_bytes().map(str::from_utf8)
     }
-
-    /// Return both the ID and the description of the record (if present)
-    /// This should be faster than calling `id()` and `desc()` separately.
-    fn id_desc_bytes(&self) -> (&[u8], Option<&[u8]>) {
-        let mut description = self.description().splitn(2, |c| *c == b' ');
-
-        (description.next().unwrap(), description.next())
-    }
-
-    fn id_desc(&self) -> Result<(&str, Option<&str>), std::str::Utf8Error> {
-        let mut description = str::from_utf8(self.description())?.splitn(2, ' ');
-
-        Ok((description.next().unwrap(), description.next()))
-    }
 }
 
 pub struct RecordIterator<'a, Read, BufferPolicy = DefaultPolicy>
