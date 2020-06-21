@@ -6,7 +6,7 @@ use crate::fasta::owned_record::OwnedRecord;
 use crate::fasta::buffer_position::BufferPosition;
 
 /// A FASTA record that borrows data from a buffer.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct RefRecord<'a> {
     pub buffer: &'a [u8],
     pub buffer_position: &'a BufferPosition,
