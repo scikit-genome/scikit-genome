@@ -1,0 +1,17 @@
+[dependencies]
+ndarray = "0.13"
+numpy = "0.9.0"
+
+[dependencies.pyo3]
+features = ["extension-module"]
+version = "0.10.1"
+
+[lib]
+name = "skgenome"
+crate-type = ["cdylib"]
+
+[package]
+authors = ["Allen Goodman <allen.goodman@icloud.com>"]
+edition = "2018"
+name = "scikit-genome"
+version = "0.1.0"
