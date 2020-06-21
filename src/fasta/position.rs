@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Position {
-    pub(crate) line: u64,
-    pub(crate) byte: u64,
+    pub line: u64,
+    pub byte: u64,
 }
 
 impl Position {

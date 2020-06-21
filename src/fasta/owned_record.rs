@@ -1,4 +1,5 @@
 use crate::fasta;
+use crate::fasta::buffer_policy::StandardPolicy;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct OwnedRecord {
@@ -19,8 +20,8 @@ impl fasta::record::Record for OwnedRecord {
 }
 
 /// Iterator of `OwnedRecord` that owns the underlying reader
-pub struct OwnedRecordIntoIterator<Read: std::io::Read, BufferPolicy = DefaultPolicy> {
-    parser: fasta::parser::Parser<Read, BufferPolicy>,
+pub struct OwnedRecordIntoIterator<Read: std::io::Read, BufferPolicy = StandardPolicy> {
+    pub parser: fasta::parser::Parser<Read, BufferPolicy>,
 }
 
 impl<Read, BufferPolicy> Iterator for OwnedRecordIntoIterator<Read, BufferPolicy>

@@ -2,14 +2,19 @@ use crate::{fasta, fill_buf};
 use std::io::{Seek, BufRead};
 use std::io;
 use memchr::Memchr;
+use crate::fasta::buffer_policy::StandardPolicy;
+use crate::fasta::buffer_position::BufferPosition;
+use crate::fasta::set::Set;
+
+const BUFFER_SIZE: usize = 64 * 1024;
 
 pub struct Parser<Reader: std::io::Read, Policy = fasta::buffer_policy::StandardPolicy> {
-    buffer_policy: Policy,
-    buffer_position: BufferPosition,
-    buffer_reader: buf_redux::BufReader<Reader>,
-    finished: bool,
-    position: fasta::position::Position,
-    search_position: usize,
+    pub buffer_policy: Policy,
+    pub buffer_position: BufferPosition,
+    pub buffer_reader: buf_redux::BufReader<Reader>,
+    pub finished: bool,
+    pub position: fasta::position::Position,
+    pub search_position: usize,
 }
 
 impl<Reader> Parser<Reader, fasta::buffer_policy::StandardPolicy>
@@ -36,7 +41,7 @@ where
     /// Creates a new reader with a given buffer capacity. The minimum allowed
     /// capacity is 3.
     #[inline]
-    pub fn with_capacity(reader: Reader, capacity: usize) -> Parser<Reader, DefaultPolicy> {
+    pub fn with_capacity(reader: Reader, capacity: usize) -> Parser<Reader, StandardPolicy> {
         assert!(capacity >= 3);
         Parser {
             buffer_reader: buf_redux::BufReader::with_capacity(capacity, reader),
@@ -52,7 +57,7 @@ where
     }
 }
 
-impl Parser<std::fs::File, DefaultPolicy> {
+impl Parser<std::fs::File, StandardPolicy> {
     /// Creates a reader from a file path.
     ///
     /// # Example:
@@ -131,7 +136,7 @@ where
     /// Updates a [RecordSet](struct.RecordSet.html) with new data. The contents of the internal
     /// buffer are just copied over to the record set and the positions of all records are found.
     /// Old data will be erased. Returns `None` if the input reached its end.
-    pub fn read_record_set(&mut self, rset: &mut RecordSet) -> Option<Result<(), fasta::error::Error>> {
+    pub fn read_record_set(&mut self, rset: &mut Set) -> Option<Result<(), fasta::error::Error>> {
         if self.finished {
             return None;
         }

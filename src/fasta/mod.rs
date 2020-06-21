@@ -1,14 +1,3 @@
-pub mod buffer_policy;
-pub mod buffer_position;
-pub mod error;
-pub mod owned_record;
-pub mod parser;
-pub mod position;
-pub mod record;
-pub mod ref_record;
-pub mod sequence_iterator;
-pub mod set;
-
 //! Efficient FASTA reading and writing
 //!
 //! # Example
@@ -56,3 +45,14 @@ pub mod set;
 //! * Comment lines starting with `;` are not supported.
 //!   If at the start of a file, there will be an error, since `>` is expected.
 //!   Intermediate comments are appended to the sequence.
+
+pub mod buffer_policy;
+pub mod buffer_position;
+pub mod error;
+pub mod owned_record;
+pub mod parser;
+pub mod position;
+pub mod record;
+pub mod ref_record;
+pub mod sequence_iterator;
+pub mod set;

@@ -3,12 +3,13 @@ use crate::trim_cr;
 use crate::fasta::sequence_iterator::SequenceIterator;
 use std::borrow::Cow;
 use crate::fasta::owned_record::OwnedRecord;
+use crate::fasta::buffer_position::BufferPosition;
 
 /// A FASTA record that borrows data from a buffer.
 #[derive(Debug, Clone)]
 pub struct RefRecord<'a> {
-    pub(crate) buffer: &'a [u8],
-    pub(crate) buffer_position: &'a BufferPosition,
+    pub buffer: &'a [u8],
+    pub buffer_position: &'a BufferPosition,
 }
 
 impl<'a> Record for RefRecord<'a> {

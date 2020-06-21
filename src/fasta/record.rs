@@ -1,4 +1,5 @@
 use crate::fasta;
+use crate::fasta::buffer_policy::StandardPolicy;
 
 pub trait Record {
     fn description(&self) -> &[u8];
@@ -19,12 +20,12 @@ pub trait Record {
     }
 }
 
-pub struct RecordIterator<'a, Read, BufferPolicy = DefaultPolicy>
+pub struct RecordIterator<'a, Read, BufferPolicy = StandardPolicy>
 where
     BufferPolicy: 'a,
     Read: std::io::Read + 'a,
 {
-    pub(crate) parser: &'a mut fasta::parser::Parser<Read, BufferPolicy>,
+    pub parser: &'a mut fasta::parser::Parser<Read, BufferPolicy>,
 }
 
 impl<'a, Read, BufferPolicy> Iterator for RecordIterator<'a, Read, BufferPolicy>

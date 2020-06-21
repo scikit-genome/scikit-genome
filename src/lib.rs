@@ -25,9 +25,6 @@ macro_rules! unwrap_or {
     };
 }
 
-pub mod buffer_policy;
-pub mod reader;
-
 use pyo3::prelude::*;
 use pyo3::{wrap_pyfunction, wrap_pymodule};
 
