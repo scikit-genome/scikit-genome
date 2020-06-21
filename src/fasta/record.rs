@@ -38,7 +38,7 @@ where
     BufferPolicy: 'a,
     Read: std::io::Read + 'a,
 {
-    parser: &'a mut fasta::parser::Parser<Read, BufferPolicy>,
+    pub(crate) parser: &'a mut fasta::parser::Parser<Read, BufferPolicy>,
 }
 
 impl<'a, Read, BufferPolicy> Iterator for RecordIterator<'a, Read, BufferPolicy>

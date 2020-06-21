@@ -1,18 +1,17 @@
-use crate::fasta::buffer_policy::{StandardPolicy, BufferPolicy};
-use crate::fasta::position::Position;
-use std::fs::File;
-use std::path::Path;
+use crate::fasta;
+use std::io::Seek;
+use std::io;
 
-pub struct Parser<Reader: std::io::Read, Policy = StandardPolicy> {
+pub struct Parser<Reader: std::io::Read, Policy = fasta::buffer_policy::StandardPolicy> {
     buffer_policy: Policy,
     buffer_position: BufferPosition,
     buffer_reader: buf_redux::BufReader<Reader>,
     finished: bool,
-    position: Position,
+    position: fasta::position::Position,
     search_position: usize,
 }
 
-impl<Reader> Parser<Reader, StandardPolicy>
+impl<Reader> Parser<Reader, fasta::buffer_policy::StandardPolicy>
 where
     Reader: std::io::Read,
 {
@@ -29,7 +28,7 @@ where
     /// assert_eq!(record.id(), Ok("id"))
     /// ```
     #[inline]
-    pub fn new(reader: Reader) -> Parser<Reader, StandardPolicy> {
+    pub fn new(reader: Reader) -> Parser<Reader, fasta::buffer_policy::StandardPolicy> {
         Parser::with_capacity(reader, BUFFER_SIZE)
     }
 
@@ -44,15 +43,15 @@ where
                 position: 0,
                 sequence_position: Vec::with_capacity(1),
             },
-            position: Position::new(0, 0),
+            position: fasta::position::Position::new(0, 0),
             search_position: 0,
             finished: false,
-            buffer_policy: StandardPolicy,
+            buffer_policy: fasta::buffer_policy::StandardPolicy,
         }
     }
 }
 
-impl Parser<File, DefaultPolicy> {
+impl Parser<std::fs::File, DefaultPolicy> {
     /// Creates a reader from a file path.
     ///
     /// # Example:
@@ -65,19 +64,19 @@ impl Parser<File, DefaultPolicy> {
     /// // (... do something with the reader)
     /// ```
     #[inline]
-    pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<Parser<File>> {
-        File::open(path).map(Parser::new)
+    pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Parser<std::fs::File>> {
+        std::fs::File::open(path).map(Parser::new)
     }
 }
 
 impl<R, P> Parser<R, P>
 where
     R: std::io::Read,
-    P: BufferPolicy,
+    P: fasta::buffer_policy::BufferPolicy,
 {
     /// Returns a reader with the given buffer policy applied
     #[inline]
-    pub fn set_policy<T: BufferPolicy>(self, policy: T) -> Parser<R, T> {
+    pub fn set_policy<T: fasta::buffer_policy::BufferPolicy>(self, policy: T) -> Parser<R, T> {
         Parser {
             buffer_reader: self.buffer_reader,
             buffer_position: self.buffer_position,
@@ -109,7 +108,7 @@ where
     ///     println!("{}", record.id().unwrap());
     /// }
     /// ```
-    pub fn next(&mut self) -> Option<Result<RefRecord, Error>> {
+    pub fn next(&mut self) -> Option<Result<fasta::ref_record::RefRecord, fasta::error::Error>> {
         if self.finished || !self.initialized() && !try_opt!(self.init()) {
             return None;
         }
@@ -122,7 +121,7 @@ where
             return None;
         }
 
-        Some(Ok(RefRecord {
+        Some(Ok(fasta::ref_record::RefRecord {
             buffer: self.get_buf(),
             buffer_position: &self.buffer_position,
         }))
@@ -131,7 +130,7 @@ where
     /// Updates a [RecordSet](struct.RecordSet.html) with new data. The contents of the internal
     /// buffer are just copied over to the record set and the positions of all records are found.
     /// Old data will be erased. Returns `None` if the input reached its end.
-    pub fn read_record_set(&mut self, rset: &mut RecordSet) -> Option<Result<(), Error>> {
+    pub fn read_record_set(&mut self, rset: &mut RecordSet) -> Option<Result<(), fasta::error::Error>> {
         if self.finished {
             return None;
         }
@@ -197,7 +196,7 @@ where
     }
 
     // moves to the first record positon, ignoring newline characters
-    fn init(&mut self) -> Result<bool, Error> {
+    fn init(&mut self) -> Result<bool, fasta::error::Error> {
         if let Some((line_num, pos, byte)) = self.first_byte()? {
             if byte == b'>' {
                 self.buffer_position.position = pos;
@@ -207,7 +206,7 @@ where
                 return Ok(true);
             } else {
                 self.finished = true;
-                return Err(Error::InvalidStart {
+                return Err(fasta::error::Error::InvalidStart {
                     line: line_num,
                     found: byte,
                 });
@@ -217,7 +216,7 @@ where
         Ok(false)
     }
 
-    fn first_byte(&mut self) -> Result<Option<(usize, usize, u8)>, Error> {
+    fn first_byte(&mut self) -> Result<Option<(usize, usize, u8)>, fasta::error::Error> {
         let mut line_num = 0;
 
         while fill_buf(&mut self.buffer_reader)? > 0 {
@@ -242,7 +241,7 @@ where
     /// Finds the position of the next record
     /// and returns true if found; false if end of buffer reached.
     #[inline]
-    fn search(&mut self) -> Result<bool, Error> {
+    fn search(&mut self) -> Result<bool, fasta::error::Error> {
         if self._search() {
             return Ok(true);
         }
@@ -292,7 +291,7 @@ where
     /// If the record still doesn't fit in, the buffer will be enlarged.
     /// After calling this function, the position will therefore always be 'complete'.
     /// this function assumes that the buffer was fully searched
-    fn next_complete(&mut self) -> Result<bool, Error> {
+    fn next_complete(&mut self) -> Result<bool, fasta::error::Error> {
         loop {
             if self.buffer_position.position == 0 {
                 // first record -> buffer too small
@@ -312,9 +311,9 @@ where
     }
 
     // grow buffer
-    fn grow(&mut self) -> Result<(), Error> {
+    fn grow(&mut self) -> Result<(), fasta::error::Error> {
         let cap = self.buffer_reader.capacity();
-        let new_size = self.buffer_policy.grow_to(cap).ok_or(Error::BufferLimit)?;
+        let new_size = self.buffer_policy.grow_to(cap).ok_or(fasta::error::Error::BufferLimit)?;
         let additional = new_size - cap;
         self.buffer_reader.reserve(additional);
         Ok(())
@@ -358,7 +357,7 @@ where
     /// # }
     /// ```
     #[inline]
-    pub fn position(&self) -> Option<&Position> {
+    pub fn position(&self) -> Option<&fasta::position::Position> {
         if self.buffer_position.is_new() {
             return None;
         }
@@ -395,8 +394,8 @@ where
     /// );
     /// # }
     /// ```
-    pub fn records(&mut self) -> RecordIterator<R, P> {
-        RecordIterator { rdr: self }
+    pub fn records(&mut self) -> fasta::record::RecordIterator<R, P> {
+        fasta::record::RecordIterator { parser: self }
     }
 
     /// Returns an iterator over all FASTA records like `Reader::records()`,
@@ -406,7 +405,7 @@ where
     }
 }
 
-impl<R, P> Parser<R, P> where R: io::Read + Seek, P: BufferPolicy, {
+impl<R, P> Parser<R, P> where R: std::io::Read + Seek, P: fasta::buffer_policy::BufferPolicy, {
     /// Seeks to a specified position.  Keeps the underyling buffer if the seek position is
     /// found within it, otherwise it has to be discarded.
     /// If an error was returned before, seeking to that position will return the same error.
@@ -441,7 +440,7 @@ impl<R, P> Parser<R, P> where R: io::Read + Seek, P: BufferPolicy, {
     /// assert_eq!(reader.next().unwrap().unwrap().to_owned_record(), record1);
     /// # }
     /// ```
-    pub fn seek(&mut self, pos: &Position) -> Result<(), Error> {
+    pub fn seek(&mut self, pos: &fasta::position::Position) -> Result<(), fasta::error::Error> {
         self.finished = false;
         let diff = pos.byte as i64 - self.position.byte as i64;
         let rel_pos = self.buffer_position.position as i64 + diff;

@@ -1,3 +1,6 @@
+use crate::fasta::ref_record::RefRecord;
+use std::{iter, slice};
+
 /// Set of FASTA records that owns it'P buffer
 /// and knows the positions of each record.
 #[derive(Clone, Debug, Serialize, Deserialize)]

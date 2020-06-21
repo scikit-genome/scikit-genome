@@ -1,8 +1,14 @@
+use crate::fasta::record::Record;
+use crate::trim_cr;
+use crate::fasta::sequence_iterator::SequenceIterator;
+use std::borrow::Cow;
+use crate::fasta::owned_record::OwnedRecord;
+
 /// A FASTA record that borrows data from a buffer.
 #[derive(Debug, Clone)]
 pub struct RefRecord<'a> {
-    buffer: &'a [u8],
-    buffer_position: &'a BufferPosition,
+    pub(crate) buffer: &'a [u8],
+    pub(crate) buffer_position: &'a BufferPosition,
 }
 
 impl<'a> Record for RefRecord<'a> {
@@ -80,7 +86,7 @@ impl<'a> RefRecord<'a> {
     /// Creates an owned copy of the record.
     pub fn to_owned_record(&self) -> OwnedRecord {
         OwnedRecord {
-            head: self.description().to_vec(),
+            description: self.description().to_vec(),
             sequence: self.owned_seq(),
         }
     }

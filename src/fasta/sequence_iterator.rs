@@ -1,7 +1,10 @@
+use std::{slice, iter};
+use crate::trim_cr;
+
 pub struct SequenceIterator<'a> {
-    count: usize,
-    position_iterator: iter::Zip<slice::Iter<'a, usize>, iter::Skip<slice::Iter<'a, usize>>>,
-    sequences: &'a [u8],
+    pub(crate) count: usize,
+    pub(crate) position_iterator: iter::Zip<slice::Iter<'a, usize>, iter::Skip<slice::Iter<'a, usize>>>,
+    pub(crate) sequences: &'a [u8],
 }
 
 impl<'a> Iterator for SequenceIterator<'a> {
