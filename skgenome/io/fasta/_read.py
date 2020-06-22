@@ -1,5 +1,5 @@
-import skgenome.ext.io.fasta
+import skgenome.skgenome
 
 
 def read(path):
-    raise skgenome.ext.io.fasta.read(path)
+    skgenome.skgenome.read_fasta(path)

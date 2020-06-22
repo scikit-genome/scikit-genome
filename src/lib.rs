@@ -14,9 +14,8 @@ use crate::io::fasta::sequence::Record;
 
 pub mod io;
 
-
 #[pyfunction]
-fn read(path: String) {
+fn read_fasta(path: String) {
     let mut sequences: Reader<fs::File> = Reader::from_path(&path).unwrap();
 
     while let Some(sequence) = sequences.next() {
@@ -25,28 +24,8 @@ fn read(path: String) {
 }
 
 #[pymodule]
-pub fn fasta(_: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_pyfunction!(read))?;
-
-    Ok(())
-}
-
-#[pymodule]
-pub fn io(_: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_pymodule!(fasta))?;
-
-    Ok(())
-}
-
-#[pymodule]
-fn ext(_: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_pymodule!(io))?;
-    Ok(())
-}
-
-#[pymodule]
-fn skgenome(_: Python, module: &PyModule) -> PyResult<()> {
-    module.add_wrapped(wrap_pymodule!(ext))?;
+fn skgenome(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pyfunction!(read_fasta))?;
 
     Ok(())
 }
