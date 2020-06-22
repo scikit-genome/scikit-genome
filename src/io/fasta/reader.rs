@@ -37,21 +37,21 @@ fn fill<R>(reader: &mut buf_redux::BufReader<R, buf_redux::policy::StdPolicy>) -
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Position {
-    pub line: u64,
-    pub byte: u64,
+    pub index: u64,
+    pub offset: u64,
 }
 
 impl Position {
-    pub fn new(line: u64, byte: u64) -> Position {
-        Position { line, byte }
+    pub fn new(index: u64, offset: u64) -> Position {
+        Position { index, offset }
     }
 
-    pub fn line(&self) -> u64 {
-        self.line
+    pub fn index(&self) -> u64 {
+        self.index
     }
 
-    pub fn byte(&self) -> u64 {
-        self.byte
+    pub fn offset(&self) -> u64 {
+        self.offset
     }
 }
 
@@ -132,13 +132,15 @@ where
             return None;
         }
 
-        Some(Ok(BufferedSequence {
-            buffer: self.get_buf(),
+        let sequence = BufferedSequence {
+            buffer: self.buffer(),
             buffer_position: &self.buffer_position,
-        }))
+        };
+
+        Some(Ok(sequence))
     }
 
-    pub fn read_record_set(&mut self, rset: &mut BufferedSequenceSet) -> Option<Result<(), Error>> {
+    pub fn read_record_set(&mut self, set: &mut BufferedSequenceSet) -> Option<Result<(), Error>> {
         if self.finished {
             return None;
         }
@@ -154,28 +156,35 @@ where
             return None;
         };
 
-        rset.buffer.clear();
-        rset.buffer.extend(self.get_buf());
+        set.buffer.clear();
 
-        let mut n = 0;
-        for pos in &mut rset.positions {
-            n += 1;
-            pos.update(&self.buffer_position);
+        set.buffer.extend(self.buffer());
+
+        let mut size = 0;
+
+        for buffer_position in &mut set.positions {
+            size += 1;
+
+            buffer_position.update(&self.buffer_position);
 
             self.next_position();
+
             if self.finished || !try_opt!(self.search()) {
-                rset.count = n;
+                set.count = size;
+
                 return Some(Ok(()));
             }
         }
 
         loop {
-            n += 1;
-            rset.positions.push(self.buffer_position.clone());
+            size += 1;
+            set.positions.push(self.buffer_position.clone());
 
             self.next_position();
+
             if self.finished || !try_opt!(self.search()) {
-                rset.count = n;
+                set.count = size;
+
                 return Some(Ok(()));
             }
         }
@@ -183,35 +192,38 @@ where
 
     #[inline]
     fn next_position(&mut self) {
-        self.position.line += self.buffer_position.sequence_position.len() as u64;
-        self.position.byte += (self.search_position - self.buffer_position.position) as u64;
+        self.position.index += self.buffer_position.sequence_position.len() as u64;
+
+        self.position.offset += (self.search_position - self.buffer_position.position) as u64;
+
         self.buffer_position.position = self.search_position;
+
         self.buffer_position.sequence_position.clear();
     }
 
     #[inline(always)]
-    fn get_buf(&self) -> &[u8] {
+    fn buffer(&self) -> &[u8] {
         self.buffer_reader.buffer()
     }
 
     #[inline(always)]
     fn initialized(&self) -> bool {
-        self.position.line != 0
+        self.position.index != 0
     }
 
     fn init(&mut self) -> Result<bool, Error> {
-        if let Some((line_num, pos, byte)) = self.first_byte()? {
-            return if byte == b'>' {
-                self.buffer_position.position = pos;
-                self.position.byte = pos as u64;
-                self.position.line = line_num as u64;
-                self.search_position = pos + 1;
+        if let Some((index, position, offset)) = self.first()? {
+            return if offset == b'>' {
+                self.buffer_position.position = position;
+                self.position.offset = position as u64;
+                self.position.index = index as u64;
+                self.search_position = position + 1;
                 Ok(true)
             } else {
                 self.finished = true;
                 Err(Error::InvalidStart {
-                    line: line_num,
-                    found: byte,
+                    line: index,
+                    found: offset,
                 })
             }
         }
@@ -221,23 +233,30 @@ where
         Ok(false)
     }
 
-    fn first_byte(&mut self) -> Result<Option<(usize, usize, u8)>, Error> {
-        let mut line_num = 0;
+    fn first(&mut self) -> Result<Option<(usize, usize, u8)>, Error> {
+        let mut index = 0;
 
         while fill(&mut self.buffer_reader)? > 0 {
-            let mut pos = 0;
+            let mut position = 0;
             let mut last_line_len = 0;
-            for line in self.get_buf().split(|b| *b == b'\n') {
-                line_num += 1;
-                if !line.is_empty() && line != b"\r" {
-                    return Ok(Some((line_num, pos, line[0])));
+
+            for bytes in self.buffer().split(|b| *b == b'\n') {
+                index += 1;
+
+                if !bytes.is_empty() && bytes != b"\r" {
+                    return Ok(Some((index, position, bytes[0])));
                 }
-                pos += line.len() + 1;
-                last_line_len = line.len();
+
+                position += bytes.len() + 1;
+
+                last_line_len = bytes.len();
             }
-            self.buffer_reader.consume(pos - 1 - last_line_len);
+
+            self.buffer_reader.consume(position - 1 - last_line_len);
+
             self.buffer_reader.make_room();
         }
+
         Ok(None)
     }
 
@@ -247,9 +266,11 @@ where
             return Ok(true);
         }
 
-        if self.get_buf().len() < self.buffer_reader.capacity() {
+        if self.buffer().len() < self.buffer_reader.capacity() {
             self.finished = true;
+
             self.buffer_position.sequence_position.push(self.search_position);
+
             return Ok(true);
         }
 
@@ -258,27 +279,29 @@ where
 
     #[inline]
     fn _search(&mut self) -> bool {
-        let bufsize = self.get_buf().len();
+        let buffer_size = self.buffer().len();
 
-        for pos in Memchr::new(b'\n', &self.buffer_reader.buffer()[self.search_position..]) {
-            let pos = self.search_position + pos;
-            let next_line_start = pos + 1;
+        for position in Memchr::new(b'\n', &self.buffer_reader.buffer()[self.search_position..]) {
+            let position = self.search_position + position;
 
-            if next_line_start == bufsize {
-                self.search_position = pos;
+            let next_line_start = position + 1;
+
+            if next_line_start == buffer_size {
+                self.search_position = position;
+
                 return false;
             }
 
-            self.buffer_position.sequence_position.push(pos);
-            if self.get_buf()[next_line_start] == b'>' {
-                // complete record was found
+            self.buffer_position.sequence_position.push(position);
+
+            if self.buffer()[next_line_start] == b'>' {
                 self.search_position = next_line_start;
+
                 return true;
             }
         }
 
-        // record end not found
-        self.search_position = bufsize;
+        self.search_position = buffer_size;
 
         false
     }
@@ -300,19 +323,26 @@ where
     }
 
     fn grow(&mut self) -> Result<(), Error> {
-        let cap = self.buffer_reader.capacity();
-        let new_size = self.buffer_policy.grow_to(cap).ok_or(Error::BufferLimit)?;
-        let additional = new_size - cap;
-        self.buffer_reader.reserve(additional);
+        let capacity = self.buffer_reader.capacity();
+
+        let size = self.buffer_policy.grow_to(capacity).ok_or(Error::BufferLimit)?;
+
+        self.buffer_reader.reserve(size - capacity);
+
         Ok(())
     }
 
     fn make_room(&mut self) {
         let consumed = self.buffer_position.position;
+
         self.buffer_reader.consume(consumed);
+
         self.buffer_reader.make_room();
+
         self.buffer_position.position = 0;
+
         self.search_position -= consumed;
+
         for s in &mut self.buffer_position.sequence_position {
             *s -= consumed;
         }
@@ -323,6 +353,7 @@ where
         if self.buffer_position.is_new() {
             return None;
         }
+
         Some(&self.position)
     }
 
@@ -336,21 +367,33 @@ where
 }
 
 impl<R, P> Reader<R, P> where R: std::io::Read + std::io::Seek, P: BufferPolicy, {
-    pub fn seek(&mut self, pos: &Position) -> Result<(), Error> {
+    pub fn seek(&mut self, position: &Position) -> Result<(), Error> {
         self.finished = false;
-        let diff = pos.byte as i64 - self.position.byte as i64;
-        let rel_pos = self.buffer_position.position as i64 + diff;
-        if rel_pos >= 0 && rel_pos < (self.get_buf().len() as i64) {
-            self.search_position = rel_pos as usize;
-            self.buffer_position.reset(rel_pos as usize);
-            self.position = pos.clone();
+
+        let difference = position.offset as i64 - self.position.offset as i64;
+
+        let relative_position = self.buffer_position.position as i64 + difference;
+
+        if relative_position >= 0 && relative_position < (self.buffer().len() as i64) {
+            self.search_position = relative_position as usize;
+
+            self.buffer_position.reset(relative_position as usize);
+
+            self.position = position.clone();
+
             return Ok(());
         }
-        self.position = pos.clone();
+
+        self.position = position.clone();
+
         self.search_position = 0;
-        self.buffer_reader.seek(std::io::SeekFrom::Start(pos.byte))?;
+
+        self.buffer_reader.seek(std::io::SeekFrom::Start(position.offset))?;
+
         fill(&mut self.buffer_reader)?;
+
         self.buffer_position.reset(0);
+
         Ok(())
     }
 }

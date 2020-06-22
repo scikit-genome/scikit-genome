@@ -44,8 +44,8 @@ impl<'a> BufferedSequence<'a> {
     #[inline]
     pub fn seq_lines(&self) -> LineIterator {
         LineIterator {
-            data: &self.buffer,
-            count: self.buffer_position.sequence_position.len() - 1,
+            bytes: &self.buffer,
+            size: self.buffer_position.sequence_position.len() - 1,
             position_iterator: self
                 .buffer_position
                 .sequence_position
@@ -129,9 +129,9 @@ impl<'a> Iterator for BufferSequenceSetIterator<'a> {
 }
 
 pub struct LineIterator<'a> {
-    pub count: usize,
+    pub bytes: &'a [u8],
     pub position_iterator: iter::Zip<slice::Iter<'a, usize>, iter::Skip<slice::Iter<'a, usize>>>,
-    pub data: &'a [u8],
+    pub size: usize,
 }
 
 impl<'a> Iterator for LineIterator<'a> {
@@ -141,7 +141,7 @@ impl<'a> Iterator for LineIterator<'a> {
     fn next(&mut self) -> Option<&'a [u8]> {
         self.position_iterator
             .next()
-            .map(|(start, next_start)| trim_carriage_return(&self.data[*start + 1..*next_start]))
+            .map(|(start, next_start)| trim_carriage_return(&self.bytes[*start + 1..*next_start]))
     }
 
     #[inline]
@@ -156,14 +156,16 @@ impl<'a> DoubleEndedIterator for LineIterator<'a> {
     fn next_back(&mut self) -> Option<&'a [u8]> {
         self.position_iterator
             .next_back()
-            .map(|(start, next_start)| trim_carriage_return(&self.data[*start + 1..*next_start]))
+            .map(|(start, next_start)| {
+                trim_carriage_return(&self.bytes[*start + 1..*next_start])
+            })
     }
 }
 
 impl<'a> ExactSizeIterator for LineIterator<'a> {
     #[inline]
     fn len(&self) -> usize {
-        self.count
+        self.size
     }
 }
 
@@ -226,6 +228,7 @@ where
     R: io::Read,
 {
     type Item = Result<Sequence, Error>;
+
     fn next(&mut self) -> Option<Self::Item> {
         self.parser.next().map(|rec| rec.map(|r| r.to_owned_record()))
     }
