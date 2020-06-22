@@ -3,10 +3,10 @@ use std::io::Seek;
 
 use memchr::Memchr;
 
-use crate::fasta::buffer_policy::{BufferPolicy, StandardPolicy};
-use crate::fasta::buffer_position::BufferPosition;
-use crate::fasta::error::Error;
-use crate::fasta::sequence::{BufferedSequence, BufferedSequenceSet, RecordIterator, SequenceIterator};
+use crate::io::fasta::buffer_policy::{BufferPolicy, StandardPolicy};
+use crate::io::fasta::buffer_position::BufferPosition;
+use crate::io::fasta::error::Error;
+use crate::io::fasta::sequence::{BufferedSequence, BufferedSequenceSet, RecordIterator, SequenceIterator};
 
 const BUFFER_SIZE: usize = 64 * 1024;
 

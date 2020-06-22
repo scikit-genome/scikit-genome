@@ -1,9 +1,9 @@
 use std::{borrow, io, iter, slice};
 
-use crate::fasta::buffer_policy::{StandardPolicy, BufferPolicy};
-use crate::fasta::buffer_position::BufferPosition;
-use crate::fasta::reader::Reader;
-use crate::fasta::error::Error;
+use crate::io::fasta::buffer_policy::{StandardPolicy, BufferPolicy};
+use crate::io::fasta::buffer_position::BufferPosition;
+use crate::io::fasta::reader::Reader;
+use crate::io::fasta::error::Error;
 
 #[inline]
 fn trim_carriage_return(line: &[u8]) -> &[u8] {
