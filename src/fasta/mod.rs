@@ -49,5 +49,5 @@
 pub mod buffer_policy;
 pub mod buffer_position;
 pub mod error;
-pub mod parser;
+pub mod reader;
 pub mod sequence;

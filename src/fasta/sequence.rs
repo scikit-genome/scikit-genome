@@ -2,7 +2,7 @@ use std::{borrow, io, iter, slice};
 
 use crate::fasta::buffer_policy::{StandardPolicy, BufferPolicy};
 use crate::fasta::buffer_position::BufferPosition;
-use crate::fasta::parser::Reader;
+use crate::fasta::reader::Reader;
 use crate::fasta::error::Error;
 
 #[inline]
