@@ -2,9 +2,17 @@ use std::{borrow, io, iter, slice};
 
 use crate::fasta::buffer_policy::{StandardPolicy, BufferPolicy};
 use crate::fasta::buffer_position::BufferPosition;
-use crate::fasta::parser::Parser;
-use crate::trim_cr;
+use crate::fasta::parser::Reader;
 use crate::fasta::error::Error;
+
+#[inline]
+fn trim_carriage_return(line: &[u8]) -> &[u8] {
+    if let Some((&b'\r', remaining)) = line.split_last() {
+        remaining
+    } else {
+        line
+    }
+}
 
 /// A FASTA record that borrows data from a buffer.
 #[derive(Clone, Debug)]
@@ -27,7 +35,7 @@ impl<'a> Record for BufferedSequence<'a> {
 
             let end = *self.buffer_position.sequence_position.last().unwrap();
 
-            trim_cr(&self.buffer[start..end])
+            trim_carriage_return(&self.buffer[start..end])
         } else {
             b""
         }
@@ -35,7 +43,7 @@ impl<'a> Record for BufferedSequence<'a> {
 
     #[inline]
     fn description(&self) -> &[u8] {
-        trim_cr(&self.buffer[self.buffer_position.position + 1..*self.buffer_position.sequence_position.first().unwrap()])
+        trim_carriage_return(&self.buffer[self.buffer_position.position + 1..*self.buffer_position.sequence_position.first().unwrap()])
     }
 }
 
@@ -151,7 +159,7 @@ impl<'a> Iterator for LineIterator<'a> {
     fn next(&mut self) -> Option<&'a [u8]> {
         self.position_iterator
             .next()
-            .map(|(start, next_start)| trim_cr(&self.data[*start + 1..*next_start]))
+            .map(|(start, next_start)| trim_carriage_return(&self.data[*start + 1..*next_start]))
     }
 
     #[inline]
@@ -166,7 +174,7 @@ impl<'a> DoubleEndedIterator for LineIterator<'a> {
     fn next_back(&mut self) -> Option<&'a [u8]> {
         self.position_iterator
             .next_back()
-            .map(|(start, next_start)| trim_cr(&self.data[*start + 1..*next_start]))
+            .map(|(start, next_start)| trim_carriage_return(&self.data[*start + 1..*next_start]))
     }
 }
 
@@ -187,7 +195,7 @@ where
     P: 'a,
     R: std::io::Read + 'a,
 {
-    pub parser: &'a mut Parser<R, P>,
+    pub parser: &'a mut Reader<R, P>,
 }
 
 impl<'a, R, P> Iterator for RecordIterator<'a, R, P>
@@ -227,7 +235,7 @@ impl Record for Sequence {
 }
 
 pub struct SequenceIterator<R: io::Read, P = StandardPolicy> {
-    pub parser: Parser<R, P>,
+    pub parser: Reader<R, P>,
 }
 
 impl<R, P> Iterator for SequenceIterator<R, P>

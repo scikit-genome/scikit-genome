@@ -1,26 +1,74 @@
-use crate::{fasta, fill_buf};
-use std::io::{Seek, BufRead};
-use std::io;
+use std::io::BufRead;
+use std::io::Seek;
+
 use memchr::Memchr;
-use crate::fasta::buffer_policy::StandardPolicy;
+
+use crate::fasta::buffer_policy::{BufferPolicy, StandardPolicy};
 use crate::fasta::buffer_position::BufferPosition;
-use crate::try_opt;
-use crate::fasta::sequence::{BufferedSequence, BufferedSequenceSet, SequenceIterator};
+use crate::fasta::error::Error;
+use crate::fasta::sequence::{BufferedSequence, BufferedSequenceSet, RecordIterator, SequenceIterator};
 
 const BUFFER_SIZE: usize = 64 * 1024;
 
-pub struct Parser<Reader: std::io::Read, Policy = fasta::buffer_policy::StandardPolicy> {
-    pub buffer_policy: Policy,
+macro_rules! try_opt {
+    ($expr: expr) => {
+        match $expr {
+            Ok(item) => item,
+            Err(e) => return Some(Err(::std::convert::From::from(e))),
+        }
+    };
+}
+
+fn fill<R>(reader: &mut buf_redux::BufReader<R, buf_redux::policy::StdPolicy>) -> std::io::Result<usize> where R: std::io::Read {
+    let size = reader.buffer().len();
+
+    let mut read = 0;
+
+    while size + read < reader.capacity() {
+        match reader.read_into_buf() {
+            Ok(0) => break,
+            Ok(n) => read += n,
+            Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(e) => return Err(e),
+        }
+    }
+    Ok(read)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Position {
+    pub line: u64,
+    pub byte: u64,
+}
+
+impl Position {
+    pub fn new(line: u64, byte: u64) -> Position {
+        Position { line, byte }
+    }
+
+    /// Line number (starting with 1)
+    pub fn line(&self) -> u64 {
+        self.line
+    }
+
+    /// Byte offset within the file
+    pub fn byte(&self) -> u64 {
+        self.byte
+    }
+}
+
+pub struct Reader<R: std::io::Read, P = StandardPolicy> {
+    pub buffer_policy: P,
     pub buffer_position: BufferPosition,
-    pub buffer_reader: buf_redux::BufReader<Reader>,
+    pub buffer_reader: buf_redux::BufReader<R>,
     pub finished: bool,
     pub position: Position,
     pub search_position: usize,
 }
 
-impl<Reader> Parser<Reader, fasta::buffer_policy::StandardPolicy>
+impl<R> Reader<R, StandardPolicy>
 where
-    Reader: std::io::Read,
+    R: std::io::Read,
 {
     /// Creates a new reader with the default buffer size of 64 KiB
     ///
@@ -35,16 +83,16 @@ where
     /// assert_eq!(record.id(), Ok("id"))
     /// ```
     #[inline]
-    pub fn new(reader: Reader) -> Parser<Reader, fasta::buffer_policy::StandardPolicy> {
-        Parser::with_capacity(reader, BUFFER_SIZE)
+    pub fn new(reader: R) -> Reader<R, StandardPolicy> {
+        Reader::with_capacity(reader, BUFFER_SIZE)
     }
 
     /// Creates a new reader with a given buffer capacity. The minimum allowed
     /// capacity is 3.
     #[inline]
-    pub fn with_capacity(reader: Reader, capacity: usize) -> Parser<Reader, StandardPolicy> {
+    pub fn with_capacity(reader: R, capacity: usize) -> Reader<R, StandardPolicy> {
         assert!(capacity >= 3);
-        Parser {
+        Reader {
             buffer_reader: buf_redux::BufReader::with_capacity(capacity, reader),
             buffer_position: BufferPosition {
                 position: 0,
@@ -53,38 +101,38 @@ where
             position: Position::new(0, 0),
             search_position: 0,
             finished: false,
-            buffer_policy: fasta::buffer_policy::StandardPolicy,
+            buffer_policy: StandardPolicy,
         }
     }
 }
 
-impl Parser<std::fs::File, StandardPolicy> {
+impl Reader<std::fs::File, StandardPolicy> {
     /// Creates a reader from a file path.
     ///
     /// # Example:
     ///
     /// ```no_run
-    /// use seq_io::fasta::Reader;
+    /// use skgenome::fasta::Reader;
     ///
     /// let mut reader = Reader::from_path("seqs.fasta").unwrap();
     ///
     /// // (... do something with the reader)
     /// ```
     #[inline]
-    pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Parser<std::fs::File>> {
-        std::fs::File::open(path).map(Parser::new)
+    pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Reader<std::fs::File>> {
+        std::fs::File::open(path).map(Reader::new)
     }
 }
 
-impl<R, P> Parser<R, P>
+impl<R, P> Reader<R, P>
 where
     R: std::io::Read,
-    P: fasta::buffer_policy::BufferPolicy,
+    P: BufferPolicy,
 {
     /// Returns a reader with the given buffer policy applied
     #[inline]
-    pub fn set_policy<T: fasta::buffer_policy::BufferPolicy>(self, policy: T) -> Parser<R, T> {
-        Parser {
+    pub fn set_policy<T: BufferPolicy>(self, policy: T) -> Reader<R, T> {
+        Reader {
             buffer_reader: self.buffer_reader,
             buffer_position: self.buffer_position,
             position: self.position,
@@ -115,7 +163,7 @@ where
     ///     println!("{}", record.id().unwrap());
     /// }
     /// ```
-    pub fn next(&mut self) -> Option<Result<BufferedSequence, fasta::error::Error>> {
+    pub fn next(&mut self) -> Option<Result<BufferedSequence, Error>> {
         if self.finished || !self.initialized() && !try_opt!(self.init()) {
             return None;
         }
@@ -137,7 +185,7 @@ where
     /// Updates a [RecordSet](struct.RecordSet.html) with new data. The contents of the internal
     /// buffer are just copied over to the record set and the positions of all records are found.
     /// Old data will be erased. Returns `None` if the input reached its end.
-    pub fn read_record_set(&mut self, rset: &mut BufferedSequenceSet) -> Option<Result<(), fasta::error::Error>> {
+    pub fn read_record_set(&mut self, rset: &mut BufferedSequenceSet) -> Option<Result<(), Error>> {
         if self.finished {
             return None;
         }
@@ -203,7 +251,7 @@ where
     }
 
     // moves to the first record positon, ignoring newline characters
-    fn init(&mut self) -> Result<bool, fasta::error::Error> {
+    fn init(&mut self) -> Result<bool, Error> {
         if let Some((line_num, pos, byte)) = self.first_byte()? {
             return if byte == b'>' {
                 self.buffer_position.position = pos;
@@ -213,7 +261,7 @@ where
                 Ok(true)
             } else {
                 self.finished = true;
-                Err(fasta::error::Error::InvalidStart {
+                Err(Error::InvalidStart {
                     line: line_num,
                     found: byte,
                 })
@@ -225,10 +273,10 @@ where
         Ok(false)
     }
 
-    fn first_byte(&mut self) -> Result<Option<(usize, usize, u8)>, fasta::error::Error> {
+    fn first_byte(&mut self) -> Result<Option<(usize, usize, u8)>, Error> {
         let mut line_num = 0;
 
-        while fill_buf(&mut self.buffer_reader)? > 0 {
+        while fill(&mut self.buffer_reader)? > 0 {
             let mut pos = 0;
             let mut last_line_len = 0;
             for line in self.get_buf().split(|b| *b == b'\n') {
@@ -250,7 +298,7 @@ where
     /// Finds the position of the next record
     /// and returns true if found; false if end of buffer reached.
     #[inline]
-    fn search(&mut self) -> Result<bool, fasta::error::Error> {
+    fn search(&mut self) -> Result<bool, Error> {
         if self._search() {
             return Ok(true);
         }
@@ -300,7 +348,7 @@ where
     /// If the record still doesn't fit in, the buffer will be enlarged.
     /// After calling this function, the position will therefore always be 'complete'.
     /// this function assumes that the buffer was fully searched
-    fn next_complete(&mut self) -> Result<bool, fasta::error::Error> {
+    fn next_complete(&mut self) -> Result<bool, Error> {
         loop {
             if self.buffer_position.position == 0 {
                 // first record -> buffer too small
@@ -311,7 +359,7 @@ where
             }
 
             // fill up remaining buffer
-            fill_buf(&mut self.buffer_reader)?;
+            fill(&mut self.buffer_reader)?;
 
             if self.search()? {
                 return Ok(true);
@@ -320,9 +368,9 @@ where
     }
 
     // grow buffer
-    fn grow(&mut self) -> Result<(), fasta::error::Error> {
+    fn grow(&mut self) -> Result<(), Error> {
         let cap = self.buffer_reader.capacity();
-        let new_size = self.buffer_policy.grow_to(cap).ok_or(fasta::error::Error::BufferLimit)?;
+        let new_size = self.buffer_policy.grow_to(cap).ok_or(Error::BufferLimit)?;
         let additional = new_size - cap;
         self.buffer_reader.reserve(additional);
         Ok(())
@@ -403,8 +451,8 @@ where
     /// );
     /// # }
     /// ```
-    pub fn records(&mut self) -> fasta::sequence::RecordIterator<R, P> {
-        fasta::sequence::RecordIterator { parser: self }
+    pub fn records(&mut self) -> RecordIterator<R, P> {
+        RecordIterator { parser: self }
     }
 
     /// Returns an iterator over all FASTA records like `Reader::records()`,
@@ -414,7 +462,7 @@ where
     }
 }
 
-impl<R, P> Parser<R, P> where R: std::io::Read + Seek, P: fasta::buffer_policy::BufferPolicy, {
+impl<R, P> Reader<R, P> where R: std::io::Read + std::io::Seek, P: BufferPolicy, {
     /// Seeks to a specified position.  Keeps the underyling buffer if the seek position is
     /// found within it, otherwise it has to be discarded.
     /// If an error was returned before, seeking to that position will return the same error.
@@ -449,7 +497,7 @@ impl<R, P> Parser<R, P> where R: std::io::Read + Seek, P: fasta::buffer_policy::
     /// assert_eq!(reader.next().unwrap().unwrap().to_owned_record(), record1);
     /// # }
     /// ```
-    pub fn seek(&mut self, pos: &Position) -> Result<(), fasta::error::Error> {
+    pub fn seek(&mut self, pos: &Position) -> Result<(), Error> {
         self.finished = false;
         let diff = pos.byte as i64 - self.position.byte as i64;
         let rel_pos = self.buffer_position.position as i64 + diff;
@@ -462,31 +510,9 @@ impl<R, P> Parser<R, P> where R: std::io::Read + Seek, P: fasta::buffer_policy::
         }
         self.position = pos.clone();
         self.search_position = 0;
-        self.buffer_reader.seek(io::SeekFrom::Start(pos.byte))?;
-        fill_buf(&mut self.buffer_reader)?;
+        self.buffer_reader.seek(std::io::SeekFrom::Start(pos.byte))?;
+        fill(&mut self.buffer_reader)?;
         self.buffer_position.reset(0);
         Ok(())
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Position {
-    pub line: u64,
-    pub byte: u64,
-}
-
-impl Position {
-    pub fn new(line: u64, byte: u64) -> Position {
-        Position { line, byte }
-    }
-
-    /// Line number (starting with 1)
-    pub fn line(&self) -> u64 {
-        self.line
-    }
-
-    /// Byte offset within the file
-    pub fn byte(&self) -> u64 {
-        self.byte
     }
 }
