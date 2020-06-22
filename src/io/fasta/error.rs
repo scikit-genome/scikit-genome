@@ -1,17 +1,10 @@
-/// FASTA parsing error
 #[derive(Debug)]
 pub enum Error {
-    /// io::Error
     Io(std::io::Error),
-    /// First non-empty line does not start with `>`
     InvalidStart {
-        /// line number (1-based)
         line: usize,
-        /// byte that was found instead
         found: u8,
     },
-    /// Size limit of buffer was reached, which happens if `policy::BufPolicy::grow_to()` returned
-    /// `None`. This does not happen with the default `struct.DoubleUntil.html` policy.
     BufferLimit,
 }
 

@@ -46,12 +46,10 @@ impl Position {
         Position { line, byte }
     }
 
-    /// Line number (starting with 1)
     pub fn line(&self) -> u64 {
         self.line
     }
 
-    /// Byte offset within the file
     pub fn byte(&self) -> u64 {
         self.byte
     }
@@ -70,25 +68,11 @@ impl<R> Reader<R, StandardPolicy>
 where
     R: std::io::Read,
 {
-    /// Creates a new reader with the default buffer size of 64 KiB
-    ///
-    /// # Example:
-    ///
-    /// ```
-    /// use seq_io::fasta::{Reader,Record};
-    /// let fasta = b">id\nSEQUENCE";
-    ///
-    /// let mut reader = Reader::new(&fasta[..]);
-    /// let record = reader.next().unwrap().unwrap();
-    /// assert_eq!(record.id(), Ok("id"))
-    /// ```
     #[inline]
     pub fn new(reader: R) -> Reader<R, StandardPolicy> {
         Reader::with_capacity(reader, BUFFER_SIZE)
     }
 
-    /// Creates a new reader with a given buffer capacity. The minimum allowed
-    /// capacity is 3.
     #[inline]
     pub fn with_capacity(reader: R, capacity: usize) -> Reader<R, StandardPolicy> {
         assert!(capacity >= 3);
@@ -107,17 +91,6 @@ where
 }
 
 impl Reader<std::fs::File, StandardPolicy> {
-    /// Creates a reader from a file path.
-    ///
-    /// # Example:
-    ///
-    /// ```no_run
-    /// use skgenome::fasta::Reader;
-    ///
-    /// let mut reader = Reader::from_path("seqs.fasta").unwrap();
-    ///
-    /// // (... do something with the reader)
-    /// ```
     #[inline]
     pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Reader<std::fs::File>> {
         std::fs::File::open(path).map(Reader::new)
@@ -129,7 +102,6 @@ where
     R: std::io::Read,
     P: BufferPolicy,
 {
-    /// Returns a reader with the given buffer policy applied
     #[inline]
     pub fn set_policy<T: BufferPolicy>(self, policy: T) -> Reader<R, T> {
         Reader {
@@ -142,27 +114,11 @@ where
         }
     }
 
-    /// Returns the `BufPolicy` of the reader
     #[inline]
     pub fn policy(&self) -> &P {
         &self.buffer_policy
     }
 
-    /// Searches the next FASTA record and returns a [RefRecord](struct.RefRecord.html) that
-    /// borrows its data from the underlying buffer of this reader.
-    ///
-    /// # Example:
-    ///
-    /// ```no_run
-    /// use seq_io::fasta::{Reader,Record};
-    ///
-    /// let mut reader = Reader::from_path("seqs.fasta").unwrap();
-    ///
-    /// while let Some(record) = reader.next() {
-    ///     let record = record.unwrap();
-    ///     println!("{}", record.id().unwrap());
-    /// }
-    /// ```
     pub fn next(&mut self) -> Option<Result<BufferedSequence, Error>> {
         if self.finished || !self.initialized() && !try_opt!(self.init()) {
             return None;
@@ -182,9 +138,6 @@ where
         }))
     }
 
-    /// Updates a [RecordSet](struct.RecordSet.html) with new data. The contents of the internal
-    /// buffer are just copied over to the record set and the positions of all records are found.
-    /// Old data will be erased. Returns `None` if the input reached its end.
     pub fn read_record_set(&mut self, rset: &mut BufferedSequenceSet) -> Option<Result<(), Error>> {
         if self.finished {
             return None;
@@ -295,8 +248,6 @@ where
         Ok(None)
     }
 
-    /// Finds the position of the next record
-    /// and returns true if found; false if end of buffer reached.
     #[inline]
     fn search(&mut self) -> Result<bool, Error> {
         if self._search() {
@@ -343,11 +294,6 @@ where
         false
     }
 
-    /// To be called when the end of the buffer is reached and `next_pos` does not find
-    /// the next record. Incomplete bytes will be moved to the start of the buffer.
-    /// If the record still doesn't fit in, the buffer will be enlarged.
-    /// After calling this function, the position will therefore always be 'complete'.
-    /// this function assumes that the buffer was fully searched
     fn next_complete(&mut self) -> Result<bool, Error> {
         loop {
             if self.buffer_position.position == 0 {
@@ -388,31 +334,6 @@ where
         }
     }
 
-    /// Returns the current position (useful with `seek()`).
-    /// If `next()` has not yet been called, `None` will be returned.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # extern crate seq_io;
-    /// # fn main() {
-    /// use seq_io::fasta::{Reader,Position};
-    ///
-    /// let fasta = b">id1
-    /// ACGT
-    /// >id2
-    /// TGCA";
-    ///
-    /// let mut reader = Reader::new(&fasta[..]);
-    ///
-    /// // skip one record
-    /// reader.next().unwrap();
-    /// // second position
-    /// reader.next().unwrap();
-    ///
-    /// assert_eq!(reader.position(), Some(&Position::new(3, 10)));
-    /// # }
-    /// ```
     #[inline]
     pub fn position(&self) -> Option<&Position> {
         if self.buffer_position.is_new() {
@@ -421,88 +342,21 @@ where
         Some(&self.position)
     }
 
-    /// Returns a borrowed iterator over all FASTA records. The records
-    /// are owned (`OwnedRecord`), this is therefore slower than using
-    /// `Reader::next()`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # extern crate seq_io;
-    /// # fn main() {
-    /// use seq_io::fasta::{Reader,OwnedRecord};
-    ///
-    /// let fasta = b">id1
-    /// ACGT
-    /// >id2
-    /// TGCA";
-    ///
-    /// let mut reader = Reader::new(&fasta[..]);
-    ///
-    /// let records: Result<Vec<_>, _> = reader
-    ///     .records()
-    ///     .collect();
-    ///
-    /// assert_eq!(records.unwrap(),
-    ///     vec![
-    ///         OwnedRecord {head: b"id1".to_vec(), seq: b"ACGT".to_vec()},
-    ///         OwnedRecord {head: b"id2".to_vec(), seq: b"TGCA".to_vec()}
-    ///     ]
-    /// );
-    /// # }
-    /// ```
     pub fn records(&mut self) -> RecordIterator<R, P> {
         RecordIterator { parser: self }
     }
 
-    /// Returns an iterator over all FASTA records like `Reader::records()`,
-    /// but with the difference that it owns the underlying reader.
     pub fn into_records(self) -> SequenceIterator<R, P> {
         SequenceIterator { parser: self }
     }
 }
 
 impl<R, P> Reader<R, P> where R: std::io::Read + std::io::Seek, P: BufferPolicy, {
-    /// Seeks to a specified position.  Keeps the underyling buffer if the seek position is
-    /// found within it, otherwise it has to be discarded.
-    /// If an error was returned before, seeking to that position will return the same error.
-    /// The same is not always true with `None`. If there is no newline character at the end of the
-    /// file, the last record will be returned instead of `None`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// # extern crate seq_io;
-    /// # fn main() {
-    /// use seq_io::fasta::{Reader,Position,OwnedRecord};
-    /// use std::io::Cursor;
-    ///
-    /// let fasta = b">id1
-    /// ACGT
-    /// >id2
-    /// TGCA";
-    ///
-    /// let mut cursor = Cursor::new(&fasta[..]);
-    /// let mut reader = Reader::new(cursor);
-    ///
-    /// // read the first record and get its position
-    /// let record1 = reader.next().unwrap().unwrap().to_owned_record();
-    /// let pos1 = reader.position().unwrap().to_owned();
-    ///
-    /// // read the second record
-    /// reader.next().unwrap().unwrap();
-    ///
-    /// // now seek to position of first record
-    /// reader.seek(&pos1);
-    /// assert_eq!(reader.next().unwrap().unwrap().to_owned_record(), record1);
-    /// # }
-    /// ```
     pub fn seek(&mut self, pos: &Position) -> Result<(), Error> {
         self.finished = false;
         let diff = pos.byte as i64 - self.position.byte as i64;
         let rel_pos = self.buffer_position.position as i64 + diff;
         if rel_pos >= 0 && rel_pos < (self.get_buf().len() as i64) {
-            // position reachable within buffer -> no actual seeking necessary
             self.search_position = rel_pos as usize;
             self.buffer_position.reset(rel_pos as usize);
             self.position = pos.clone();

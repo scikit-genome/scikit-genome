@@ -14,7 +14,6 @@ fn trim_carriage_return(line: &[u8]) -> &[u8] {
     }
 }
 
-/// A FASTA record that borrows data from a buffer.
 #[derive(Clone, Debug)]
 pub struct BufferedSequence<'a> {
     pub buffer: &'a [u8],
@@ -22,12 +21,6 @@ pub struct BufferedSequence<'a> {
 }
 
 impl<'a> Record for BufferedSequence<'a> {
-    /// Return the FASTA sequence as byte slice.
-    /// Note that this method of `RefRecord` returns
-    /// the **raw** sequence, which may contain line breaks.
-    /// Use `seq_lines()` to iterate over all lines without
-    /// breaks, or use [`full_seq()`](struct.RefRecord.html#method.full_seq)
-    /// to access the whole sequence at once.
     #[inline]
     fn data(&self) -> &[u8] {
         if self.buffer_position.sequence_position.len() > 1 {
@@ -48,7 +41,6 @@ impl<'a> Record for BufferedSequence<'a> {
 }
 
 impl<'a> BufferedSequence<'a> {
-    /// Return an iterator over all sequence lines in the data
     #[inline]
     pub fn seq_lines(&self) -> LineIterator {
         LineIterator {
@@ -62,17 +54,11 @@ impl<'a> BufferedSequence<'a> {
         }
     }
 
-    /// Returns the number of sequence lines.
-    /// Equivalent to `self.seq_lines().len()`
     #[inline]
     pub fn num_seq_lines(&self) -> usize {
         self.seq_lines().len()
     }
 
-    /// Returns the full sequence. If the sequence consists of a single line,
-    /// then the sequence will be borrowed from the underlying buffer
-    /// (equivalent to calling `RefRecord::seq()`). If there are multiple
-    /// lines, an owned copy will be created (equivalent to `RefRecord::owned_seq()`).
     pub fn full_seq(&self) -> borrow::Cow<[u8]> {
         if self.num_seq_lines() == 1 {
             // only one line
@@ -82,9 +68,6 @@ impl<'a> BufferedSequence<'a> {
         }
     }
 
-    /// Returns the sequence as owned `Vec`. **Note**: This function
-    /// must be called in order to obtain a sequence that does not contain
-    /// line endings (as returned by `seq()`)
     pub fn owned_seq(&self) -> Vec<u8> {
         let mut seq = Vec::new();
         for segment in self.seq_lines() {
@@ -93,7 +76,6 @@ impl<'a> BufferedSequence<'a> {
         seq
     }
 
-    /// Creates an owned copy of the record.
     pub fn to_owned_record(&self) -> Sequence {
         Sequence {
             description: self.description().to_vec(),

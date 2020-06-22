@@ -1,33 +1,3 @@
-//! Efficient FASTA reading and writing
-//!
-//! # Example
-//!
-//! This example reads some content, writes it back and compares the output
-//! (should be the same):
-//!
-//! ```
-//! use seq_io::fasta::{Reader, Record};
-//!
-//! let input = b">id1
-//! ACGT
-//! ACGT
-//! >id2
-//! TGCA
-//! TGCA
-//! ";
-//!
-//! let mut reader = Reader::new(&input[..]);
-//! let mut output = vec![];
-//!
-//! while let Some(record) = reader.next() {
-//!     let record = record.expect("Error reading record");
-//!     println!("id: {}", record.id().unwrap());
-//!     record.write_wrap(&mut output, 4);
-//! }
-//!
-//! assert_eq!(input, output.as_slice());
-//! ```
-//!
 //! # Details on parsing behaviour
 //!
 //! * The parser handles UNIX (LF) and Windows (CRLF) line endings, but not old
