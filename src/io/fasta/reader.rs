@@ -154,11 +154,9 @@ where
             return None;
         };
 
-        // copy buffer AFTER call to next_complete (initialization of buffer is done there)
         rset.buffer.clear();
         rset.buffer.extend(self.get_buf());
 
-        // Update records that are already in the positions vector
         let mut n = 0;
         for pos in &mut rset.positions {
             n += 1;
@@ -171,7 +169,6 @@ where
             }
         }
 
-        // Add more positions if necessary
         loop {
             n += 1;
             rset.positions.push(self.buffer_position.clone());
@@ -184,7 +181,6 @@ where
         }
     }
 
-    // Sets starting points for next position
     #[inline]
     fn next_position(&mut self) {
         self.position.line += self.buffer_position.sequence_position.len() as u64;
@@ -203,7 +199,6 @@ where
         self.position.line != 0
     }
 
-    // moves to the first record positon, ignoring newline characters
     fn init(&mut self) -> Result<bool, Error> {
         if let Some((line_num, pos, byte)) = self.first_byte()? {
             return if byte == b'>' {
@@ -240,8 +235,6 @@ where
                 pos += line.len() + 1;
                 last_line_len = line.len();
             }
-            // If an orphan '\r' is found at the end of the buffer,
-            // we need to move it to the start and re-search the line
             self.buffer_reader.consume(pos - 1 - last_line_len);
             self.buffer_reader.make_room();
         }
@@ -254,9 +247,7 @@ where
             return Ok(true);
         }
 
-        // nothing found
         if self.get_buf().len() < self.buffer_reader.capacity() {
-            // EOF reached, there will be no next record
             self.finished = true;
             self.buffer_position.sequence_position.push(self.search_position);
             return Ok(true);
@@ -265,7 +256,6 @@ where
         Ok(false)
     }
 
-    // returns true if complete position found, false if end of buffer reached.
     #[inline]
     fn _search(&mut self) -> bool {
         let bufsize = self.get_buf().len();
@@ -275,8 +265,7 @@ where
             let next_line_start = pos + 1;
 
             if next_line_start == bufsize {
-                // cannot check next byte -> treat as incomplete
-                self.search_position = pos; // make sure last byte is re-searched next time
+                self.search_position = pos;
                 return false;
             }
 
@@ -297,14 +286,11 @@ where
     fn next_complete(&mut self) -> Result<bool, Error> {
         loop {
             if self.buffer_position.position == 0 {
-                // first record -> buffer too small
                 self.grow()?;
             } else {
-                // not the first record -> buffer may be big enough
                 self.make_room();
             }
 
-            // fill up remaining buffer
             fill(&mut self.buffer_reader)?;
 
             if self.search()? {
@@ -313,7 +299,6 @@ where
         }
     }
 
-    // grow buffer
     fn grow(&mut self) -> Result<(), Error> {
         let cap = self.buffer_reader.capacity();
         let new_size = self.buffer_policy.grow_to(cap).ok_or(Error::BufferLimit)?;
@@ -322,7 +307,6 @@ where
         Ok(())
     }
 
-    // move incomplete bytes to start of buffer
     fn make_room(&mut self) {
         let consumed = self.buffer_position.position;
         self.buffer_reader.consume(consumed);
