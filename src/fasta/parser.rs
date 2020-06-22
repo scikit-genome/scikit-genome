@@ -4,9 +4,8 @@ use std::io;
 use memchr::Memchr;
 use crate::fasta::buffer_policy::StandardPolicy;
 use crate::fasta::buffer_position::BufferPosition;
-use crate::fasta::set::Set;
 use crate::try_opt;
-use crate::fasta::owned_record::OwnedRecordIntoIterator;
+use crate::fasta::sequence::{BufferedSequence, BufferedSequenceSet, SequenceIterator};
 
 const BUFFER_SIZE: usize = 64 * 1024;
 
@@ -15,7 +14,7 @@ pub struct Parser<Reader: std::io::Read, Policy = fasta::buffer_policy::Standard
     pub buffer_position: BufferPosition,
     pub buffer_reader: buf_redux::BufReader<Reader>,
     pub finished: bool,
-    pub position: fasta::position::Position,
+    pub position: Position,
     pub search_position: usize,
 }
 
@@ -51,7 +50,7 @@ where
                 position: 0,
                 sequence_position: Vec::with_capacity(1),
             },
-            position: fasta::position::Position::new(0, 0),
+            position: Position::new(0, 0),
             search_position: 0,
             finished: false,
             buffer_policy: fasta::buffer_policy::StandardPolicy,
@@ -116,7 +115,7 @@ where
     ///     println!("{}", record.id().unwrap());
     /// }
     /// ```
-    pub fn next(&mut self) -> Option<Result<fasta::ref_record::RefRecord, fasta::error::Error>> {
+    pub fn next(&mut self) -> Option<Result<BufferedSequence, fasta::error::Error>> {
         if self.finished || !self.initialized() && !try_opt!(self.init()) {
             return None;
         }
@@ -129,7 +128,7 @@ where
             return None;
         }
 
-        Some(Ok(fasta::ref_record::RefRecord {
+        Some(Ok(BufferedSequence {
             buffer: self.get_buf(),
             buffer_position: &self.buffer_position,
         }))
@@ -138,7 +137,7 @@ where
     /// Updates a [RecordSet](struct.RecordSet.html) with new data. The contents of the internal
     /// buffer are just copied over to the record set and the positions of all records are found.
     /// Old data will be erased. Returns `None` if the input reached its end.
-    pub fn read_record_set(&mut self, rset: &mut Set) -> Option<Result<(), fasta::error::Error>> {
+    pub fn read_record_set(&mut self, rset: &mut BufferedSequenceSet) -> Option<Result<(), fasta::error::Error>> {
         if self.finished {
             return None;
         }
@@ -367,7 +366,7 @@ where
     /// # }
     /// ```
     #[inline]
-    pub fn position(&self) -> Option<&fasta::position::Position> {
+    pub fn position(&self) -> Option<&Position> {
         if self.buffer_position.is_new() {
             return None;
         }
@@ -404,14 +403,14 @@ where
     /// );
     /// # }
     /// ```
-    pub fn records(&mut self) -> fasta::record::RecordIterator<R, P> {
-        fasta::record::RecordIterator { parser: self }
+    pub fn records(&mut self) -> fasta::sequence::RecordIterator<R, P> {
+        fasta::sequence::RecordIterator { parser: self }
     }
 
     /// Returns an iterator over all FASTA records like `Reader::records()`,
     /// but with the difference that it owns the underlying reader.
-    pub fn into_records(self) -> OwnedRecordIntoIterator<R, P> {
-        OwnedRecordIntoIterator { parser: self }
+    pub fn into_records(self) -> SequenceIterator<R, P> {
+        SequenceIterator { parser: self }
     }
 }
 
@@ -450,7 +449,7 @@ impl<R, P> Parser<R, P> where R: std::io::Read + Seek, P: fasta::buffer_policy::
     /// assert_eq!(reader.next().unwrap().unwrap().to_owned_record(), record1);
     /// # }
     /// ```
-    pub fn seek(&mut self, pos: &fasta::position::Position) -> Result<(), fasta::error::Error> {
+    pub fn seek(&mut self, pos: &Position) -> Result<(), fasta::error::Error> {
         self.finished = false;
         let diff = pos.byte as i64 - self.position.byte as i64;
         let rel_pos = self.buffer_position.position as i64 + diff;
@@ -467,5 +466,27 @@ impl<R, P> Parser<R, P> where R: std::io::Read + Seek, P: fasta::buffer_policy::
         fill_buf(&mut self.buffer_reader)?;
         self.buffer_position.reset(0);
         Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Position {
+    pub line: u64,
+    pub byte: u64,
+}
+
+impl Position {
+    pub fn new(line: u64, byte: u64) -> Position {
+        Position { line, byte }
+    }
+
+    /// Line number (starting with 1)
+    pub fn line(&self) -> u64 {
+        self.line
+    }
+
+    /// Byte offset within the file
+    pub fn byte(&self) -> u64 {
+        self.byte
     }
 }
